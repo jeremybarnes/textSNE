@@ -21,13 +21,6 @@ import numpy as Math
 import pylab as Plot
 
 import sys
-try:
-    import psyco
-    psyco.full()
-    print >> sys.stderr, "psyco is usable!"
-except:
-    print >> sys.stderr, "No psyco"
-    
     
 def Hbeta(D = Math.array([]), beta = 1.0):
     """Compute the perplexity and the P-row for a specific value of the precision of a Gaussian distribution."""
@@ -37,6 +30,13 @@ def Hbeta(D = Math.array([]), beta = 1.0):
     sumP = sum(P);
     H = Math.log(sumP) + beta * Math.sum(D * P) / sumP;
     P = P / sumP;
+    
+    print "D =", D
+    print "H =", H
+    print "P =", P
+    print "sumP =", sumP
+    print "beta =", beta
+
     return H, P;
     
     
@@ -47,7 +47,15 @@ def x2p(X = Math.array([]), tol = 1e-5, perplexity = 30.0):
     print "Computing pairwise distances..."
     (n, d) = X.shape;
     sum_X = Math.sum(Math.square(X), 1);
+
+    print "sum_X.shape", sum_X.shape
+
     D = Math.add(Math.add(-2 * Math.dot(X, X.T), sum_X).T, sum_X);
+
+    print "dot(X, X.T).shape", Math.dot(X, X.T).shape
+
+    print "D.shape", D.shape
+
     P = Math.zeros((n, n));
     beta = Math.ones((n, 1));
     logU = Math.log(perplexity);
@@ -70,6 +78,8 @@ def x2p(X = Math.array([]), tol = 1e-5, perplexity = 30.0):
         tries = 0;
         while Math.abs(Hdiff) > tol and tries < 50:
                 
+            print H, logU, Hdiff, beta[i], betamin, betamax
+
             # If not, increase or decrease precision
             if Hdiff > 0:
                 betamin = beta[i];
@@ -89,6 +99,18 @@ def x2p(X = Math.array([]), tol = 1e-5, perplexity = 30.0):
             Hdiff = H - logU;
             tries = tries + 1;
             
+        print "tries", tries
+        print "D", list(Di)
+        print "H", H
+        print "logU", logU
+        print "Hdiff", Hdiff
+        print "beta[i]", beta[i]
+        print "betamin", betamin
+        print "betamax", betamax
+        print "P", list(thisP)
+
+        sys.exit(1)
+
         # Set the final row of P
         P[i, Math.concatenate((Math.r_[0:i], Math.r_[i+1:n]))] = thisP;
     
@@ -103,12 +125,23 @@ def pca(X = Math.array([]), no_dims = 50):
     print "Preprocessing the data using PCA..."
     (n, d) = X.shape;
     X = X - Math.tile(Math.mean(X, 0), (n, 1));
+
+    print "X", X.dtype
+
     (l, M) = Math.linalg.eig(Math.dot(X.T, X));
+
+    M = Math.asarray(M, "float64")
+
+    print "M", M.dtype
+
     Y = Math.dot(X, M[:,0:no_dims]);
+    
+    print "Y", Y.dtype
+
     return Y;
 
 
-def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0, use_pca=False):
+def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0, use_pca=True):
     """Runs t-SNE on the dataset in the NxD array X to reduce its dimensionality to no_dims dimensions.
     The syntaxis of the function is Y = tsne.tsne(X, no_dims, perplexity), where X is an NxD NumPy array."""
     
@@ -124,6 +157,10 @@ def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0, 
     if use_pca:
         X = pca(X, initial_dims);
     (n, d) = X.shape;
+
+    print n
+    print d
+
     max_iter = 1000;
     initial_momentum = 0.5;
     final_momentum = 0.8;
@@ -185,5 +222,9 @@ if __name__ == "__main__":
     print "Running example on 2,500 MNIST digits..."
     X = Math.loadtxt("mnist2500_X.txt");
     labels = Math.loadtxt("mnist2500_labels.txt");
+    X = X[range(100), ...]
+    #Di = D[i, Math.concatenate((Math.r_[0:i], Math.r_[i+1:n]))];
+
+
     Y = tsne(X, 2, 50, 20.0);
     Plot.scatter(Y[:,0], Y[:,1], 20, labels);

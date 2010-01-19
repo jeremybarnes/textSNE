@@ -31,11 +31,11 @@ def Hbeta(D = Math.array([]), beta = 1.0):
     H = Math.log(sumP) + beta * Math.sum(D * P) / sumP;
     P = P / sumP;
     
-    print "D =", D
-    print "H =", H
-    print "P =", P
-    print "sumP =", sumP
-    print "beta =", beta
+    #print "D =", D
+    #print "H =", H
+    #print "P =", P
+    #print "sumP =", sumP
+    #print "beta =", beta
 
     return H, P;
     
@@ -48,18 +48,18 @@ def x2p(X = Math.array([]), tol = 1e-5, perplexity = 30.0):
     (n, d) = X.shape;
     sum_X = Math.sum(Math.square(X), 1);
 
-    print "sum_X.shape", sum_X.shape
+    #print "sum_X.shape", sum_X.shape
 
     D = Math.add(Math.add(-2 * Math.dot(X, X.T), sum_X).T, sum_X);
 
-    print "dot(X, X.T).shape", Math.dot(X, X.T).shape
+    #print "dot(X, X.T).shape", Math.dot(X, X.T).shape
 
-    print "D.shape", D.shape
+    #print "D.shape", D.shape
 
     P = Math.zeros((n, n));
     beta = Math.ones((n, 1));
     logU = Math.log(perplexity);
-    
+
     # Loop over all datapoints
     for i in range(n):
     
@@ -76,19 +76,27 @@ def x2p(X = Math.array([]), tol = 1e-5, perplexity = 30.0):
         # Evaluate whether the perplexity is within tolerance
         Hdiff = H - logU;
         tries = 0;
-        while Math.abs(Hdiff) > tol and tries < 50:
-                
-            print H, logU, Hdiff, beta[i], betamin, betamax
 
+        lastbeta = None
+    
+        while Math.abs(Hdiff) > tol and tries < 50:
+
+            #print H, logU, Hdiff, lastbeta, beta[i], betamin, betamax
+
+            if beta[i] == lastbeta:
+                raise RuntimeError("beta didn't advance")
+
+            lastbeta = beta[i][0]
+                
             # If not, increase or decrease precision
             if Hdiff > 0:
-                betamin = beta[i];
+                betamin = beta[i][0];
                 if betamax == Math.inf or betamax == -Math.inf:
                     beta[i] = beta[i] * 2;
                 else:
                     beta[i] = (beta[i] + betamax) / 2;
             else:
-                betamax = beta[i];
+                betamax = beta[i][0];
                 if betamin == Math.inf or betamin == -Math.inf:
                     beta[i] = beta[i] / 2;
                 else:
@@ -99,17 +107,16 @@ def x2p(X = Math.array([]), tol = 1e-5, perplexity = 30.0):
             Hdiff = H - logU;
             tries = tries + 1;
             
-        print "tries", tries
-        print "D", list(Di)
-        print "H", H
-        print "logU", logU
-        print "Hdiff", Hdiff
-        print "beta[i]", beta[i]
-        print "betamin", betamin
-        print "betamax", betamax
-        print "P", list(thisP)
-
-        sys.exit(1)
+        #print "tries", tries
+        #print "D", list(Di)
+        #print "H", H
+        #print "logU", logU
+        #print "Hdiff", Hdiff
+        #print "beta[i]", beta[i]
+        #print "betamin", betamin
+        #print "betamax", betamax
+        #print "P", list(thisP)
+        #sys.exit(1)
 
         # Set the final row of P
         P[i, Math.concatenate((Math.r_[0:i], Math.r_[i+1:n]))] = thisP;
@@ -140,6 +147,13 @@ def pca(X = Math.array([]), no_dims = 50):
 
     return Y;
 
+# Truncate an integer to 64 bits
+def trunc64(x):
+    highbit = (x >> 64) << 64
+    result = x - highbit
+    assert result >> 64 == 0
+    return result
+    
 
 def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0, use_pca=True):
     """Runs t-SNE on the dataset in the NxD array X to reduce its dimensionality to no_dims dimensions.
@@ -166,14 +180,43 @@ def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0, 
     final_momentum = 0.8;
     eta = 500;
     min_gain = 0.01;
+    
+    # REAL
     Y = Math.random.randn(n, no_dims);
+
+    # PSEUDO
+    Y = Math.zeros((n, no_dims))
+    for i in range(n):
+        for j in range(no_dims):
+            Y[i, j] = ((trunc64((trunc64(i * 18446744073709551557) + j) * 18446744073709551557) % 4099) / 1050.0) - 2.0
+
+    print Y[range(10)]
+
     dY = Math.zeros((n, no_dims));
     iY = Math.zeros((n, no_dims));
     gains = Math.ones((n, no_dims));
+
+    #print "X"
+    #print X[0, ...]
+    #print
+    #print X[..., 0]
     
+    print "perplexity", perplexity
+
     # Compute P-values
     P = x2p(X, 1e-5, perplexity);
+    
+    print
+    print
+    print "P"
+    print P[0, ...]
+
+
     P = P + Math.transpose(P);
+    
+    print "Math.sum(P).shape", Math.sum(P).shape
+    print "Math.sum(P)", Math.sum(P)
+
     P = P / Math.sum(P);
     P = P * 4;                                    # early exaggeration
     P = Math.maximum(P, 1e-12);
@@ -220,11 +263,21 @@ def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0, 
 if __name__ == "__main__":
     print "Run Y = tsne.tsne(X, no_dims, perplexity) to perform t-SNE on your dataset."
     print "Running example on 2,500 MNIST digits..."
-    X = Math.loadtxt("mnist2500_X.txt");
-    labels = Math.loadtxt("mnist2500_labels.txt");
-    X = X[range(100), ...]
-    #Di = D[i, Math.concatenate((Math.r_[0:i], Math.r_[i+1:n]))];
 
+    from gzip import GzipFile
 
-    Y = tsne(X, 2, 50, 20.0);
+    X = Math.loadtxt(GzipFile("mnist2500_X_min.txt.gz"));
+    labels = Math.loadtxt(GzipFile("mnist2500_labels_min.txt.gz"));
+
+    nrows = X.shape[0];
+
+    # Smaller number of labels for debugging...
+    nrows = 100
+
+    X = X[range(nrows), ...]
+    labels = labels[range(nrows), ...]
+
+    Y = tsne(X, 2, 50, 20.0, use_pca=False);
     Plot.scatter(Y[:,0], Y[:,1], 20, labels);
+    Plot.legend(loc='lower left')
+    Plot.show()

@@ -226,7 +226,14 @@ def tsne(X = Math.array([]), no_dims = 2, initial_dims = 50, perplexity = 30.0, 
         
         # Compute pairwise affinities
         sum_Y = Math.sum(Math.square(Y), 1);        
+
+        print "sum_Y.shape = ", sum_Y.shape
+        print "sum_Y = ", sum_Y
+
         num = 1 / (1 + Math.add(Math.add(-2 * Math.dot(Y, Y.T), sum_Y).T, sum_Y));
+        print "num.shape = ", num.shape
+        print "num = ", num
+
         num[range(n), range(n)] = 0;
         Q = num / Math.sum(num);
         Q = Math.maximum(Q, 1e-12);
@@ -280,4 +287,4 @@ if __name__ == "__main__":
     Y = tsne(X, 2, 50, 20.0, use_pca=False);
     Plot.scatter(Y[:,0], Y[:,1], 20, labels);
     Plot.legend(loc='lower left')
-    Plot.show()
+    #Plot.show()
